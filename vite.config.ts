@@ -5,18 +5,16 @@ import { viteSingleFile } from 'vite-plugin-singlefile';
 export default defineConfig({
   plugins: [react(), viteSingleFile()],
   define: {
-    // Prevent crashes during build if process is referenced
     'process.env': {} 
   },
   build: {
     target: 'esnext',
-    assetsInlineLimit: 100000000, // Force inlining
+    assetsInlineLimit: 100000000,
     chunkSizeWarningLimit: 100000000,
     cssCodeSplit: false,
-    // brotliSize option is removed in Vite 5+
     rollupOptions: {
-      inlineDynamicImports: true,
       output: {
+        inlineDynamicImports: true,
         manualChunks: undefined,
       },
     },
