@@ -10,12 +10,11 @@ st.set_page_config(layout="wide", page_title="Horizon Lab - AI Suite")
 def load_react_app():
     # Paths
     app_dir = os.path.dirname(os.path.abspath(__file__))
-    dist_dir = os.path.join(app_dir, "dist")
+    # Changed to dist_app to ensure we don't use stale artifacts from previous builds
+    dist_dir = os.path.join(app_dir, "dist_app")
     index_path = os.path.join(dist_dir, "index.html")
     
     # 1. Build Process (Only if needed)
-    # We check if index.html exists. 
-    # NOTE: On Streamlit Cloud, repo changes trigger a fresh clone, so this will run once per deployment.
     if not os.path.exists(index_path):
         
         # Check for Node.js
@@ -26,7 +25,11 @@ def load_react_app():
         status = st.status("🚀 Building Application...", expanded=True)
         try:
             status.write("📦 Installing dependencies...")
-            subprocess.run(["npm", "install"], cwd=app_dir, check=True, capture_output=True)
+            # Use ci if package-lock exists for faster/cleaner install, else install
+            if os.path.exists(os.path.join(app_dir, "package-lock.json")):
+                 subprocess.run(["npm", "ci"], cwd=app_dir, check=True, capture_output=True)
+            else:
+                 subprocess.run(["npm", "install"], cwd=app_dir, check=True, capture_output=True)
             
             status.write("🔨 Compiling React app...")
             subprocess.run(["npm", "run", "build"], cwd=app_dir, check=True, capture_output=True)
@@ -50,15 +53,12 @@ def load_react_app():
         st.stop()
 
     # 3. Secure API Key Injection
-    # Try secrets first, then environment variable
     api_key = st.secrets.get("API_KEY", os.environ.get("API_KEY", ""))
 
     if not api_key:
         st.error("⚠️ API_KEY is missing! Please add it to .streamlit/secrets.toml")
         st.stop()
 
-    # Create the injection script
-    # We define window.process.env.API_KEY so the React app can access it via process.env.API_KEY
     js_injection = f"""
     <script>
       window.process = window.process || {{}};
@@ -67,7 +67,6 @@ def load_react_app():
     </script>
     """
     
-    # Inject directly into <head> to ensure it runs before the main bundle
     if "<head>" in html_content:
         html_content = html_content.replace("<head>", f"<head>{js_injection}")
     else:
