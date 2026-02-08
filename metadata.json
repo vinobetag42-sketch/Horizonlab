@@ -1,0 +1,7 @@
+{
+  "name": "Copy of Horizon Lab",
+  "description": "A professional educational automation suite for generating question papers, scanning via camera with stability detection, and AI-powered grading using Gemini.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
