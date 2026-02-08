@@ -80,14 +80,19 @@ def load_react_app():
     <script>
       window.process = {{
         env: {{
-          API_KEY: "{api_key}"
+          API_KEY: "{api_key}",
+          NODE_ENV: "production"
         }}
       }};
     </script>
     """
     
-    # Prepend the injection to the head
-    html_content = injection + html_content
+    # Proper injection into <head> to ensure it loads before React
+    if "<head>" in html_content:
+        html_content = html_content.replace("<head>", f"<head>{injection}")
+    else:
+        # Fallback if no head tag found (unlikely)
+        html_content = injection + html_content
 
     # Render the app
     components.html(html_content, height=1000, scrolling=True)
