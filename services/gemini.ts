@@ -1,8 +1,21 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Annotation } from "../types";
 
+// Helper to safely get the API key from the environment injected by Streamlit
+const getApiKey = (): string => {
+  // Check for the injected window.process.env.API_KEY
+  if (typeof window !== 'undefined' && (window as any).process?.env?.API_KEY) {
+    return (window as any).process.env.API_KEY;
+  }
+  // Fallback for standard process.env if available (e.g. build time replacement)
+  if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+    return process.env.API_KEY;
+  }
+  return "";
+};
+
 // Initialize Gemini Client
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const ai = new GoogleGenAI({ apiKey: getApiKey() });
 
 export const generateQuestionPaperContent = async (
   topic: string,
