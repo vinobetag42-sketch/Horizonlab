@@ -4,9 +4,7 @@ import { viteSingleFile } from 'vite-plugin-singlefile';
 
 export default defineConfig({
   plugins: [react(), viteSingleFile()],
-  define: {
-    'process.env': {} 
-  },
+  base: './', // CRITICAL: Ensures assets load correctly in Streamlit iframe
   build: {
     target: 'esnext',
     assetsInlineLimit: 100000000,
