@@ -4,98 +4,77 @@ import os
 import subprocess
 import shutil
 
-st.set_page_config(layout="wide", page_title="Horizon Lab")
+# Page Config
+st.set_page_config(layout="wide", page_title="Horizon Lab - AI Suite")
 
 def load_react_app():
     # Paths
-    app_dir = os.path.dirname(__file__)
+    app_dir = os.path.dirname(os.path.abspath(__file__))
     dist_dir = os.path.join(app_dir, "dist")
     index_path = os.path.join(dist_dir, "index.html")
     
-    # Check if build exists
+    # 1. Build Process (Only if needed)
+    # We check if index.html exists. 
+    # NOTE: On Streamlit Cloud, repo changes trigger a fresh clone, so this will run once per deployment.
     if not os.path.exists(index_path):
-        st.warning("⚠️ Build artifact not found. Attempting to build on server...")
         
-        # Check if npm is available
+        # Check for Node.js
         if shutil.which("npm") is None:
-            st.error("❌ 'npm' is not installed on this server. Please add 'nodejs' and 'npm' to packages.txt.")
-            return
+            st.error("❌ Node.js/npm not found. Please add 'nodejs' and 'npm' to packages.txt for Streamlit Cloud.")
+            st.stop()
 
-        status_container = st.empty()
-        
+        status = st.status("🚀 Building Application...", expanded=True)
         try:
-            with status_container.container():
-                st.info("📦 Installing dependencies... (this may take a minute)")
-                # Run npm install
-                install_process = subprocess.run(
-                    ["npm", "install"], 
-                    cwd=app_dir, 
-                    check=True, 
-                    shell=False,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True
-                )
-                
-                st.info("🔨 Building React application...")
-                # Run npm run build
-                build_process = subprocess.run(
-                    ["npm", "run", "build"], 
-                    cwd=app_dir, 
-                    check=True, 
-                    shell=False,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True
-                )
+            status.write("📦 Installing dependencies...")
+            subprocess.run(["npm", "install"], cwd=app_dir, check=True, capture_output=True)
             
-            status_container.success("✅ Build successful! Reloading...")
+            status.write("🔨 Compiling React app...")
+            subprocess.run(["npm", "run", "build"], cwd=app_dir, check=True, capture_output=True)
+            
+            status.update(label="✅ Build Complete!", state="complete", expanded=False)
             st.rerun()
             
         except subprocess.CalledProcessError as e:
-            status_container.error(f"❌ Build failed with error code {e.returncode}")
-            with st.expander("View Build Logs (Error Details)", expanded=True):
-                st.code(f"STDOUT:\n{e.stdout}\n\nSTDERR:\n{e.stderr}")
-            return
-        except Exception as e:
-            status_container.error(f"❌ An unexpected error occurred: {str(e)}")
-            return
+            status.update(label="❌ Build Failed", state="error")
+            st.error("Build process failed. Check logs.")
+            with st.expander("Error Logs"):
+                st.code(e.stderr.decode('utf-8') if e.stderr else str(e))
+            st.stop()
 
-    # Read the built HTML
+    # 2. Read HTML
     try:
         with open(index_path, "r", encoding="utf-8") as f:
             html_content = f.read()
     except Exception as e:
-        st.error(f"Failed to read build file: {e}")
-        return
+        st.error(f"❌ Could not read build file: {e}")
+        st.stop()
 
-    # Get API Key from Streamlit Secrets or Environment
+    # 3. Secure API Key Injection
+    # Try secrets first, then environment variable
     api_key = st.secrets.get("API_KEY", os.environ.get("API_KEY", ""))
 
     if not api_key:
-        st.warning("⚠️ API_KEY not found in secrets. AI features may not work.")
+        st.error("⚠️ API_KEY is missing! Please add it to .streamlit/secrets.toml")
+        st.stop()
 
-    # Inject the API Key into the window.process object so the React code can access process.env.API_KEY
-    injection = f"""
+    # Create the injection script
+    # We define window.process.env.API_KEY so the React app can access it via process.env.API_KEY
+    js_injection = f"""
     <script>
-      window.process = {{
-        env: {{
-          API_KEY: "{api_key}",
-          NODE_ENV: "production"
-        }}
-      }};
+      window.process = window.process || {{}};
+      window.process.env = window.process.env || {{}};
+      window.process.env.API_KEY = "{api_key}";
     </script>
     """
     
-    # Proper injection into <head> to ensure it loads before React
+    # Inject directly into <head> to ensure it runs before the main bundle
     if "<head>" in html_content:
-        html_content = html_content.replace("<head>", f"<head>{injection}")
+        html_content = html_content.replace("<head>", f"<head>{js_injection}")
     else:
-        # Fallback if no head tag found (unlikely)
-        html_content = injection + html_content
+        html_content = js_injection + html_content
 
-    # Render the app
-    components.html(html_content, height=1000, scrolling=True)
+    # 4. Render
+    components.html(html_content, height=900, scrolling=True)
 
 if __name__ == "__main__":
     load_react_app()
