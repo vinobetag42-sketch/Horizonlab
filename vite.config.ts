@@ -8,28 +8,25 @@ export default defineConfig({
     viteSingleFile(),
     {
       name: 'html-transform-fix',
-      // This hook runs on the generated bundle chunks
       renderChunk(code) {
-        // Escapes </script> to \x3C/script> to prevent the browser from 
-        // interpreting it as the end of the script tag in the single-file HTML.
-        return code.replace(/<\/script>/g, '\\x3C/script>');
+        // Robustly escape script tags to prevent HTML parsing errors
+        return code.replace(/<\s*\/\s*script>/gi, '\\x3C/script>');
       }
     }
   ],
-  // Critical for assets to load in Streamlit's iframe environment
   base: './',
   define: {
-    // Prevent Vite from replacing process.env with {} so our injected variables work
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
   },
   build: {
+    outDir: 'dist_app',
     target: 'esnext',
-    assetsInlineLimit: 100000000, // Force inline
+    assetsInlineLimit: 100000000,
     chunkSizeWarningLimit: 100000000,
-    cssCodeSplit: false, // Inline CSS
+    cssCodeSplit: false,
     rollupOptions: {
       output: {
-        inlineDynamicImports: true, // Inline dynamic imports
+        inlineDynamicImports: true,
         manualChunks: undefined,
       },
     },
