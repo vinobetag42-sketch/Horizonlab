@@ -18,7 +18,7 @@ def load_react_app():
         
         # Check if npm is available
         if shutil.which("npm") is None:
-            st.error("❌ 'npm' is not installed on this server. Please add 'nodejs' and 'npm' to packages.txt or commit the 'dist' folder locally.")
+            st.error("❌ 'npm' is not installed on this server. Please add 'nodejs' and 'npm' to packages.txt.")
             return
 
         status_container = st.empty()
@@ -27,17 +27,35 @@ def load_react_app():
             with status_container.container():
                 st.info("📦 Installing dependencies... (this may take a minute)")
                 # Run npm install
-                subprocess.run(["npm", "install"], cwd=app_dir, check=True, shell=False)
+                install_process = subprocess.run(
+                    ["npm", "install"], 
+                    cwd=app_dir, 
+                    check=True, 
+                    shell=False,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True
+                )
                 
                 st.info("🔨 Building React application...")
                 # Run npm run build
-                subprocess.run(["npm", "run", "build"], cwd=app_dir, check=True, shell=False)
+                build_process = subprocess.run(
+                    ["npm", "run", "build"], 
+                    cwd=app_dir, 
+                    check=True, 
+                    shell=False,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True
+                )
             
             status_container.success("✅ Build successful! Reloading...")
             st.rerun()
             
         except subprocess.CalledProcessError as e:
-            status_container.error(f"❌ Build failed with error code {e.returncode}. Check logs for details.")
+            status_container.error(f"❌ Build failed with error code {e.returncode}")
+            with st.expander("View Build Logs (Error Details)", expanded=True):
+                st.code(f"STDOUT:\n{e.stdout}\n\nSTDERR:\n{e.stderr}")
             return
         except Exception as e:
             status_container.error(f"❌ An unexpected error occurred: {str(e)}")
