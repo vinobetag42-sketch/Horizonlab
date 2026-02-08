@@ -13,7 +13,7 @@ export default defineConfig({
     assetsInlineLimit: 100000000, // Force inlining
     chunkSizeWarningLimit: 100000000,
     cssCodeSplit: false,
-    brotliSize: false,
+    // brotliSize option is removed in Vite 5+
     rollupOptions: {
       inlineDynamicImports: true,
       output: {
